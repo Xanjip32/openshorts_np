@@ -796,22 +796,7 @@ def transcribe_video(video_path, language=None):
     }
 
 def get_viral_clips(transcript_result, video_duration):
-    print("🤖  Analyzing with Gemini...")
-    
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        print("❌ Error: GEMINI_API_KEY not found in environment variables.")
-        return None
-
-
-    client = genai.Client(api_key=api_key)
-    
-    # We use gemini-2.5-flash as requested.
-    model_name = 'gemini-2.5-flash' 
-    
-    print(f"🤖  Initializing Gemini with model: {model_name}")
-
-    # Extract words
+    # Extract words (shared for both providers)
     words = []
     for segment in transcript_result['segments']:
         for word in segment.get('words', []):
@@ -826,6 +811,60 @@ def get_viral_clips(transcript_result, video_duration):
         transcript_text=json.dumps(transcript_result['text']),
         words_json=json.dumps(words)
     )
+
+    # Try MiMo / OpenAI-compatible API first
+    mimo_key = os.getenv("MIMO_API_KEY")
+    mimo_base = os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
+    mimo_model = os.getenv("MIMO_MODEL", "mimo-v2.5")
+
+    if mimo_key:
+        print(f"🤖  Analyzing with MiMo ({mimo_model})...")
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=mimo_key, base_url=mimo_base)
+            response = client.chat.completions.create(
+                model=mimo_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=4096,
+            )
+            text = response.choices[0].message.content
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+
+            cost_analysis = None
+            if response.usage:
+                cost_analysis = {
+                    "input_tokens": response.usage.prompt_tokens,
+                    "output_tokens": response.usage.completion_tokens,
+                    "model": mimo_model,
+                    "provider": "mimo"
+                }
+                print(f"💰 Token Usage ({mimo_model}):")
+                print(f"   - Input Tokens: {response.usage.prompt_tokens}")
+                print(f"   - Output Tokens: {response.usage.completion_tokens}")
+
+            result_json = json.loads(text)
+            if cost_analysis:
+                result_json['cost_analysis'] = cost_analysis
+            return result_json
+        except Exception as e:
+            print(f"❌ MiMo Error: {e}")
+            print("⚠️ Falling back to Gemini...")
+
+    # Fallback: Gemini
+    print("🤖  Analyzing with Gemini...")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("❌ Error: No MIMO_API_KEY or GEMINI_API_KEY found.")
+        return None
+
+    client = genai.Client(api_key=api_key)
+    model_name = 'gemini-2.5-flash'
+    print(f"🤖  Initializing Gemini with model: {model_name}")
 
     try:
         response = client.models.generate_content(

@@ -322,8 +322,9 @@ async def process_endpoint(
     language: Optional[str] = Form(None)
 ):
     api_key = request.headers.get("X-Gemini-Key")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="Missing X-Gemini-Key header")
+    mimo_key = request.headers.get("X-Mimo-Key")
+    if not api_key and not mimo_key:
+        raise HTTPException(status_code=400, detail="Missing X-Gemini-Key or X-Mimo-Key header")
 
     ack_flag = str(acknowledged).lower() in ("1", "true", "yes")
 
@@ -366,7 +367,12 @@ async def process_endpoint(
     # Prepare Command
     cmd = ["python", "-u", "main.py"] # -u for unbuffered
     env = os.environ.copy()
-    env["GEMINI_API_KEY"] = api_key # Override with key from request
+    if api_key:
+        env["GEMINI_API_KEY"] = api_key
+    if mimo_key:
+        env["MIMO_API_KEY"] = mimo_key
+        env["MIMO_BASE_URL"] = request.headers.get("X-Mimo-Base-Url", "https://api.xiaomimimo.com/v1")
+        env["MIMO_MODEL"] = request.headers.get("X-Mimo-Model", "mimo-v2.5")
 
     if url:
         cmd.extend(["-u", url])

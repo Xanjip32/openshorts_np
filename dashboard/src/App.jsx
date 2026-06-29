@@ -158,6 +158,13 @@ function App() {
   // Transcription Language
   const [language, setLanguage] = useState(() => localStorage.getItem('transcription_language') || 'ne');
 
+  // MiMo API Key (OpenAI-compatible alternative to Gemini)
+  const [mimoKey, setMimoKey] = useState(() => {
+    const stored = localStorage.getItem('mimoKey_v1');
+    if (stored) return decrypt(stored);
+    return '';
+  });
+
   const [uploadUserId, setUploadUserId] = useState(() => localStorage.getItem('uploadUserId') || '');
   const [userProfiles, setUserProfiles] = useState([]); // List of {username, connected: []}
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -265,6 +272,12 @@ function App() {
   }, [language]);
 
   useEffect(() => {
+    if (mimoKey) {
+      localStorage.setItem('mimoKey_v1', encrypt(mimoKey));
+    }
+  }, [mimoKey]);
+
+  useEffect(() => {
     if (uploadPostKey && userProfiles.length === 0) {
       fetchUserProfiles();
     }
@@ -328,7 +341,7 @@ function App() {
   };
 
   const handleProcess = async (data) => {
-    if (!apiKey || !uploadPostKey) {
+    if (!apiKey && !mimoKey) {
       setShowKeyModal(true);
       return;
     }
@@ -339,7 +352,9 @@ function App() {
 
     try {
       let body;
-      const headers = { 'X-Gemini-Key': apiKey };
+      const headers = {};
+      if (apiKey) headers['X-Gemini-Key'] = apiKey;
+      if (mimoKey) headers['X-Mimo-Key'] = mimoKey;
 
       if (data.type === 'url') {
         headers['Content-Type'] = 'application/json';
@@ -354,7 +369,7 @@ function App() {
 
       const res = await fetch(getApiUrl('/api/process'), {
         method: 'POST',
-        headers: data.type === 'url' ? headers : { 'X-Gemini-Key': apiKey },
+        headers: data.type === 'url' ? headers : { 'X-Gemini-Key': apiKey || '', 'X-Mimo-Key': mimoKey || '' },
         body
       });
 
@@ -580,6 +595,48 @@ function App() {
                 </div>
               </div>
               <KeyInput onKeySet={setApiKey} savedKey={apiKey} />
+
+              <div className="glass-panel p-6 mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">MiMo AI (Alternative to Gemini)</h2>
+                  <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 uppercase tracking-wider">Optional</span>
+                </div>
+                <p className="text-xs text-zinc-500 mb-6 leading-relaxed">
+                  Use <strong>MiMo V2.5</strong> (Xiaomi) as an alternative to Gemini for viral clip detection.
+                  OpenAI-compatible — works with OpenRouter, DeepInfra, Novita AI, or Xiaomi direct.
+                  If set, MiMo is tried first; falls back to Gemini if empty.
+                </p>
+                <div className="space-y-4">
+                  <label className="block text-sm text-zinc-400">MiMo API Key</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={mimoKey}
+                      onChange={(e) => setMimoKey(e.target.value)}
+                      className="input-field"
+                      placeholder="sk-... or your provider key"
+                    />
+                    <button
+                      onClick={() => {
+                        if (mimoKey) {
+                          localStorage.setItem('mimoKey_v1', encrypt(mimoKey));
+                          alert('MiMo API Key saved!');
+                        }
+                      }}
+                      className="btn-primary py-2 px-4 text-sm"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    Providers: <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">OpenRouter</a>, <a href="https://deepinfra.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">DeepInfra</a>, <a href="https://novita.ai" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Novita AI</a>, or <a href="https://api.xiaomimimo.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Xiaomi direct</a>.
+                    <br /><br />
+                    <span className="text-zinc-600 italic">
+                      Keys are only stored in your browser. Sent to backend only to process requests.
+                    </span>
+                  </p>
+                </div>
+              </div>
 
               <div className="glass-panel p-6 mt-8">
                 <div className="flex items-center justify-between mb-4">
