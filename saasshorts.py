@@ -1046,16 +1046,21 @@ def _format_ass_time(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def transcribe_audio_for_subs(audio_path: str) -> list:
+def transcribe_audio_for_subs(audio_path: str, language: str = None) -> list:
     """
     Transcribe audio with word-level timestamps using faster-whisper.
     Returns list of {"word": str, "start": float, "end": float}.
     """
     from faster_whisper import WhisperModel
 
-    print(f"[SaaSShorts] 🎙️ Transcribing audio for subtitles...")
-    model = WhisperModel("base", device="cpu", compute_type="int8")
-    segments, info = model.transcribe(audio_path, word_timestamps=True)
+    print(f"[SaaSShorts] 🎙️ Transcribing audio for subtitles... [language={language or 'auto'}]")
+    model = WhisperModel("medium", device="cpu", compute_type="int8")
+
+    transcribe_kwargs = {"word_timestamps": True}
+    if language and language != "auto":
+        transcribe_kwargs["language"] = language
+
+    segments, info = model.transcribe(audio_path, **transcribe_kwargs)
 
     words = []
     for segment in segments:

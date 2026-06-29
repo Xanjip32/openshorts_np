@@ -747,14 +747,18 @@ def process_video_to_vertical(input_video, final_output_video):
     
     return True
 
-def transcribe_video(video_path):
-    print("🎙️  Transcribing video with Faster-Whisper (CPU Optimized)...")
+def transcribe_video(video_path, language=None):
+    print(f"🎙️  Transcribing video with Faster-Whisper (CPU Optimized)... [language={language or 'auto'}]")
     from faster_whisper import WhisperModel
     
-    # Run on CPU with INT8 quantization for speed
-    model = WhisperModel("base", device="cpu", compute_type="int8")
+    # Use medium model for better accuracy on non-English languages (Nepali, Hindi, etc.)
+    model = WhisperModel("medium", device="cpu", compute_type="int8")
     
-    segments, info = model.transcribe(video_path, word_timestamps=True)
+    transcribe_kwargs = {"word_timestamps": True}
+    if language and language != "auto":
+        transcribe_kwargs["language"] = language
+    
+    segments, info = model.transcribe(video_path, **transcribe_kwargs)
     
     print(f"   Detected language '{info.language}' with probability {info.language_probability:.2f}")
     
@@ -891,6 +895,7 @@ if __name__ == '__main__':
     input_group.add_argument('-u', '--url', type=str, help="YouTube URL to download and process.")
     
     parser.add_argument('-o', '--output', type=str, help="Output directory or file (if processing whole video).")
+    parser.add_argument('-l', '--language', type=str, default=None, help="Language code for transcription (e.g. 'ne' for Nepali, 'en' for English, 'auto' for detection).")
     parser.add_argument('--keep-original', action='store_true', help="Keep the downloaded YouTube video.")
     parser.add_argument('--skip-analysis', action='store_true', help="Skip AI analysis and convert the whole video.")
     
@@ -947,7 +952,7 @@ if __name__ == '__main__':
         process_video_to_vertical(input_video, output_file)
     else:
         # 3. Transcribe
-        transcript = transcribe_video(input_video)
+        transcript = transcribe_video(input_video, language=args.language)
         
         # Get duration
         cap = cv2.VideoCapture(input_video)

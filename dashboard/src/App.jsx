@@ -155,6 +155,9 @@ function App() {
     return '';
   });
 
+  // Transcription Language
+  const [language, setLanguage] = useState(() => localStorage.getItem('transcription_language') || 'ne');
+
   const [uploadUserId, setUploadUserId] = useState(() => localStorage.getItem('uploadUserId') || '');
   const [userProfiles, setUserProfiles] = useState([]); // List of {username, connected: []}
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -258,6 +261,10 @@ function App() {
   }, [falKey]);
 
   useEffect(() => {
+    localStorage.setItem('transcription_language', language);
+  }, [language]);
+
+  useEffect(() => {
     if (uploadPostKey && userProfiles.length === 0) {
       fetchUserProfiles();
     }
@@ -336,11 +343,12 @@ function App() {
 
       if (data.type === 'url') {
         headers['Content-Type'] = 'application/json';
-        body = JSON.stringify({ url: data.payload, acknowledged: !!data.acknowledged });
+        body = JSON.stringify({ url: data.payload, acknowledged: !!data.acknowledged, language });
       } else {
         const formData = new FormData();
         formData.append('file', data.payload);
         formData.append('acknowledged', data.acknowledged ? 'true' : 'false');
+        formData.append('language', language);
         body = formData;
       }
 
@@ -572,6 +580,33 @@ function App() {
                 </div>
               </div>
               <KeyInput onKeySet={setApiKey} savedKey={apiKey} />
+
+              <div className="glass-panel p-6 mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Transcription Language</h2>
+                  <span className="text-[10px] bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded text-blue-400 uppercase tracking-wider">Nepali Optimized</span>
+                </div>
+                <p className="text-xs text-zinc-500 mb-6 leading-relaxed">
+                  Select the primary language of your video for better transcription accuracy.
+                  The <strong>medium</strong> Whisper model is used for improved Nepali, Hindi, and multilingual support.
+                </p>
+                <div className="space-y-4">
+                  <label className="block text-sm text-zinc-400">Source Language</label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="input-field w-full"
+                  >
+                    <option value="ne">🇳🇵 Nepali (नेपाली)</option>
+                    <option value="hi">🇮🇳 Hindi (हिन्दी)</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="auto">🔍 Auto-detect</option>
+                  </select>
+                  <p className="text-xs text-zinc-600 italic">
+                    Default: Nepali. Set to your podcast language for best results.
+                  </p>
+                </div>
+              </div>
 
               <div className={`glass-panel p-6 mt-8 ${!uploadPostKey ? 'border-amber-500/30 ring-1 ring-amber-500/20' : ''}`}>
                 <div className="flex items-center justify-between mb-4">

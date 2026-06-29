@@ -2,19 +2,23 @@ import os
 import subprocess
 
 
-def transcribe_audio(video_path):
+def transcribe_audio(video_path, language=None):
     """
     Transcribe audio from a video file using faster-whisper.
     Returns transcript in the same format as main.py for compatibility.
     """
     from faster_whisper import WhisperModel
 
-    print(f"🎙️  Transcribing audio from: {video_path}")
+    print(f"🎙️  Transcribing audio from: {video_path} [language={language or 'auto'}]")
 
-    # Run on CPU with INT8 quantization for speed
-    model = WhisperModel("base", device="cpu", compute_type="int8")
+    # Use medium model for better accuracy on non-English languages
+    model = WhisperModel("medium", device="cpu", compute_type="int8")
 
-    segments, info = model.transcribe(video_path, word_timestamps=True)
+    transcribe_kwargs = {"word_timestamps": True}
+    if language and language != "auto":
+        transcribe_kwargs["language"] = language
+
+    segments, info = model.transcribe(video_path, **transcribe_kwargs)
 
     transcript = {
         "segments": [],
@@ -41,12 +45,12 @@ def transcribe_audio(video_path):
     return transcript
 
 
-def generate_srt_from_video(video_path, output_path, max_chars=20, max_duration=2.0):
+def generate_srt_from_video(video_path, output_path, max_chars=20, max_duration=2.0, language=None):
     """
     Transcribe a video and generate SRT directly.
     Used for dubbed videos that don't have a pre-existing transcript.
     """
-    transcript = transcribe_audio(video_path)
+    transcript = transcribe_audio(video_path, language=language)
 
     # Get video duration to use as clip_end
     import cv2
