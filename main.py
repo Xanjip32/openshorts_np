@@ -751,8 +751,8 @@ def transcribe_video(video_path, language=None):
     print(f"🎙️  Transcribing video with Faster-Whisper (CPU Optimized)... [language={language or 'auto'}]")
     from faster_whisper import WhisperModel
     
-    # Use medium model for better accuracy on non-English languages (Nepali, Hindi, etc.)
-    model = WhisperModel("medium", device="cpu", compute_type="int8")
+    # Use base model for speed on CPU (medium is 10x slower)
+    model = WhisperModel("base", device="cpu", compute_type="int8")
     
     transcribe_kwargs = {"word_timestamps": True}
     if language and language != "auto":
@@ -994,11 +994,24 @@ if __name__ == '__main__':
         transcript = transcribe_video(input_video, language=args.language)
         
         # Get duration
-        cap = cv2.VideoCapture(input_video)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = frame_count / fps
-        cap.release()
+        try:
+            cap = cv2.VideoCapture(input_video)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+            if fps and fps > 0:
+                duration = frame_count / fps
+            else:
+                raise ValueError("fps is 0")
+        except Exception:
+            import subprocess
+            result = subprocess.run(
+                ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                 '-of', 'default=noprint_wrappers=1:nokey=1', input_video],
+                capture_output=True, text=True
+            )
+            duration = float(result.stdout.strip()) if result.stdout.strip() else 300.0
+            print(f"⚠️ Got duration from ffprobe: {duration}s")
 
         # 4. Gemini Analysis
         clips_data = get_viral_clips(transcript, duration)

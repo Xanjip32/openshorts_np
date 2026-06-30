@@ -1054,7 +1054,7 @@ def transcribe_audio_for_subs(audio_path: str, language: str = None) -> list:
     from faster_whisper import WhisperModel
 
     print(f"[SaaSShorts] 🎙️ Transcribing audio for subtitles... [language={language or 'auto'}]")
-    model = WhisperModel("medium", device="cpu", compute_type="int8")
+    model = WhisperModel("base", device="cpu", compute_type="int8")
 
     transcribe_kwargs = {"word_timestamps": True}
     if language and language != "auto":

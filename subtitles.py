@@ -11,8 +11,8 @@ def transcribe_audio(video_path, language=None):
 
     print(f"🎙️  Transcribing audio from: {video_path} [language={language or 'auto'}]")
 
-    # Use medium model for better accuracy on non-English languages
-    model = WhisperModel("medium", device="cpu", compute_type="int8")
+    # Use base model for speed on CPU (medium is 10x slower)
+    model = WhisperModel("base", device="cpu", compute_type="int8")
 
     transcribe_kwargs = {"word_timestamps": True}
     if language and language != "auto":
